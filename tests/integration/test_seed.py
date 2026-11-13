@@ -25,6 +25,7 @@ async def test_seed_is_idempotent_and_locks_rights(
         await session.commit()
         assert first.created == 3
         assert second.created == 0
+        assert second.skipped == 3
 
         assert await session.scalar(select(func.count()).select_from(NewsSource)) == 3
         assert await session.scalar(select(func.count()).select_from(PublisherGroup)) == 3

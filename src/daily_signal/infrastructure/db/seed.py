@@ -177,7 +177,14 @@ async def seed_sources(session: AsyncSession, config: SourcesConfig) -> SeedSumm
 
     Returns a summary counting sources created this run versus sources that were
     already present (and therefore left untouched).
+
+    The rights lock is re-applied here as defence in depth: a caller that builds
+    a :class:`SourcesConfig` in code (bypassing :func:`load_sources_config`) must
+    still be unable to write granted rights. The guard runs before any query or
+    insert, so a violating config fails closed without touching the database.
     """
+    _enforce_rights_lock(config)
+
     created = 0
     skipped = 0
 
@@ -212,6 +219,8 @@ async def seed_sources(session: AsyncSession, config: SourcesConfig) -> SeedSumm
 
 async def _ensure_publisher_group(session: AsyncSession, source_cfg: SourceConfig) -> UUID:
     """Return the publisher group id, creating the group by slug when absent."""
+    # YAML's ``publisher_group_id`` is the publisher group's *slug* (the value
+    # stored in ``publisher_groups.slug``); there is no separate numeric id.
     slug = source_cfg.publisher_group_id
     group = await session.scalar(select(PublisherGroup).where(PublisherGroup.slug == slug))
     if group is None:
@@ -228,6 +237,8 @@ async def _ensure_publisher_group(session: AsyncSession, source_cfg: SourceConfi
 
 async def _ensure_feed(session: AsyncSession, source: NewsSource, source_cfg: SourceConfig) -> None:
     """Create the source's feed by ``feed_url`` when absent."""
+    # ``feed_url`` is globally unique (SourceFeed.feed_url has a unique
+    # constraint), so a bare feed_url lookup cannot collide with another source.
     feed = await session.scalar(
         select(SourceFeed).where(SourceFeed.feed_url == source_cfg.feed_url)
     )
