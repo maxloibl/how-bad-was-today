@@ -198,7 +198,7 @@ class SourceItem(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("news_sources.id"))
-    feed_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True))
+    feed_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("source_feeds.id"))
     permission_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True))
     external_id: Mapped[str | None] = mapped_column(Text)
     original_url: Mapped[str] = mapped_column(Text)

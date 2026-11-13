@@ -1,8 +1,10 @@
 """Structured JSON logging.
 
 Log lines are emitted as single-line JSON objects. Raw article text, prompts,
-and third-party full texts must never be included in log messages; callers are
-responsible for logging only metadata such as identifiers and counts.
+and third-party full texts must never be included in log messages. As a
+defence-in-depth safeguard, the formatter redacts known content-bearing fields
+and never emits raw tracebacks (which could embed source content): only the
+exception type and a short, truncated message are serialised.
 """
 
 from __future__ import annotations
@@ -10,6 +12,21 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
+
+_REDACTED = "<redacted>"
+_MAX_EXC_MESSAGE_CHARS = 200
+
+#: Field names that may carry article text, prompts, or third-party full text.
+_CONTENT_KEYS = frozenset(
+    {
+        "body_text",
+        "prompt",
+        "content",
+        "full_text",
+        "article_text",
+        "raw_text",
+    }
+)
 
 _RESERVED = {
     "name",
@@ -39,7 +56,12 @@ _RESERVED = {
 
 
 class JsonFormatter(logging.Formatter):
-    """Format log records as single-line JSON objects."""
+    """Format log records as single-line JSON objects.
+
+    Only technical metadata is serialised. Extra fields whose key names are
+    known content-bearing fields are redacted, and exception info is reduced to
+    the exception type plus a short safe message rather than a full traceback.
+    """
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, object] = {
@@ -48,18 +70,28 @@ class JsonFormatter(logging.Formatter):
             .replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": self._sanitize_message(record.getMessage()),
         }
 
         for key, value in record.__dict__.items():
             if key in _RESERVED or key.startswith("_"):
                 continue
-            payload[key] = value
+            payload[key] = _REDACTED if key in _CONTENT_KEYS else value
 
         if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
+            exc_type, exc_value, _ = record.exc_info
+            exc_message = str(exc_value) if exc_value is not None else ""
+            payload["exc_type"] = exc_type.__name__ if exc_type is not None else None
+            payload["exc_message"] = exc_message[:_MAX_EXC_MESSAGE_CHARS]
 
         return json.dumps(payload, default=str, ensure_ascii=False)
+
+    @staticmethod
+    def _sanitize_message(message: str) -> str:
+        """Redact a message that embeds a known content-bearing key name."""
+        if any(key in message for key in _CONTENT_KEYS):
+            return _REDACTED
+        return message
 
 
 def configure_logging(level: str = "INFO") -> None:
