@@ -31,6 +31,10 @@ from daily_signal.infrastructure.db import models  # noqa: F401  (registers mode
 from daily_signal.infrastructure.db.base import Base
 from daily_signal.main import create_app
 
+# Importing the factory registers its fixtures for every test module under
+# ``tests/`` (pytest only auto-discovers fixtures declared in ``conftest.py``).
+from tests.fixtures.factories import published_report  # noqa: F401
+
 
 def _require_test_database_url() -> str:
     url = os.environ.get("TEST_DATABASE_URL")
