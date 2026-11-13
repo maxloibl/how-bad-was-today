@@ -9,10 +9,14 @@ import asyncio
 import os
 import subprocess
 import sys
-from collections.abc import AsyncIterator
+import threading
+from collections.abc import AsyncIterator, Awaitable
 
 import asyncpg
 import pytest
+from asgi_lifespan import LifespanManager
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -22,8 +26,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from daily_signal.core.config import Settings
 from daily_signal.infrastructure.db import models  # noqa: F401  (registers models)
 from daily_signal.infrastructure.db.base import Base
+from daily_signal.main import create_app
 
 
 def _require_test_database_url() -> str:
@@ -44,6 +50,36 @@ def _asyncpg_dsn(url: str) -> str:
     return url.replace("+asyncpg", "")
 
 
+def _run_async[T](coro: Awaitable[T]) -> T:
+    """Run ``coro`` to completion, tolerating an already-running event loop.
+
+    Session-scoped sync fixtures can be resolved lazily from inside an async
+    fixture's body, where the session event loop is already running and a plain
+    ``asyncio.run`` would fail. In that case the coroutine runs on a fresh
+    thread with its own loop.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result: list[T] = []
+    error: list[BaseException] = []
+
+    def _target() -> None:
+        try:
+            result.append(asyncio.run(coro))
+        except BaseException as exc:  # noqa: BLE001  (re-raised below)
+            error.append(exc)
+
+    thread = threading.Thread(target=_target)
+    thread.start()
+    thread.join()
+    if error:
+        raise error[0]
+    return result[0]
+
+
 async def _reset_schema(dsn: str) -> None:
     connection = await asyncpg.connect(dsn)
     try:
@@ -57,7 +93,7 @@ async def _reset_schema(dsn: str) -> None:
 def migrated_database(test_database_url: str) -> str:
     """Reset the schema and run ``alembic upgrade head``, returning the URL."""
     dsn = _asyncpg_dsn(test_database_url)
-    asyncio.run(_reset_schema(dsn))
+    _run_async(_reset_schema(dsn))
 
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
@@ -99,3 +135,19 @@ async def clean_tables(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     async with engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     yield
+
+
+@pytest.fixture
+def app(test_database_url: str) -> FastAPI:
+    """A configured app bound to the test database, with rate limiting disabled."""
+    return create_app(Settings(database_url=test_database_url, rate_limit_per_minute=0))
+
+
+@pytest.fixture
+async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+    """An HTTP client that runs the app's lifespan and speaks to it in-process."""
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as test_client,
+    ):
+        yield test_client
