@@ -163,10 +163,12 @@ class SourceItem(Base):
         ForeignKeyConstraint(
             ["permission_id", "source_id"],
             ["source_permissions.id", "source_permissions.source_id"],
+            name="fk_source_items_permission_id_source_id_source_permissions",
         ),
         ForeignKeyConstraint(
             ["feed_id", "source_id"],
             ["source_feeds.id", "source_feeds.source_id"],
+            name="fk_source_items_feed_id_source_id_source_feeds",
         ),
         UniqueConstraint(
             "source_id", "canonical_url", name="uq_source_items_source_id_canonical_url"
@@ -198,7 +200,10 @@ class SourceItem(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("news_sources.id"))
-    feed_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("source_feeds.id"))
+    feed_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("source_feeds.id", name="fk_source_items_feed_id_source_feeds"),
+    )
     permission_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True))
     external_id: Mapped[str | None] = mapped_column(Text)
     original_url: Mapped[str] = mapped_column(Text)

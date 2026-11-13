@@ -348,6 +348,32 @@ def test_foreign_key_targets() -> None:
         assert actual == expected, f"{table_name}: foreign key mismatch"
 
 
+def test_foreign_key_constraint_shapes() -> None:
+    from sqlalchemy import ForeignKeyConstraint
+
+    table = Base.metadata.tables["source_items"]
+    actual = {
+        (
+            tuple(c.column_keys),
+            tuple((e.column.table.name, e.column.name) for e in c.elements),
+        )
+        for c in table.constraints
+        if isinstance(c, ForeignKeyConstraint)
+    }
+    assert actual == {
+        (("feed_id",), (("source_feeds", "id"),)),
+        (("source_id",), (("news_sources", "id"),)),
+        (
+            ("feed_id", "source_id"),
+            (("source_feeds", "id"), ("source_feeds", "source_id")),
+        ),
+        (
+            ("permission_id", "source_id"),
+            (("source_permissions", "id"), ("source_permissions", "source_id")),
+        ),
+    }
+
+
 def test_named_check_constraints() -> None:
     from sqlalchemy import CheckConstraint
 
@@ -370,6 +396,36 @@ def test_index_names() -> None:
     for table_name, expected in EXPECTED_INDEX_NAMES.items():
         table = Base.metadata.tables[table_name]
         assert _named(table.indexes) == expected, f"{table_name}: index mismatch"
+
+
+def test_index_expressions() -> None:
+    items = Base.metadata.tables["source_items"]
+    source_time = next(i for i in items.indexes if i.name == "ix_source_items_source_time")
+    assert [str(e) for e in source_time.expressions] == [
+        "source_items.source_id",
+        "published_at DESC",
+    ]
+    assert source_time.dialect_options["postgresql"].get("where") is None
+
+    runs = Base.metadata.tables["pipeline_runs"]
+    target = next(i for i in runs.indexes if i.name == "ix_pipeline_runs_target")
+    assert [str(e) for e in target.expressions] == [
+        "pipeline_runs.target_date",
+        "started_at DESC",
+    ]
+    assert target.dialect_options["postgresql"].get("where") is None
+
+
+def test_foreign_key_constraint_names_are_unique_per_table() -> None:
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.schema import CreateTable
+
+    table = Base.metadata.tables["source_items"]
+    ddl = str(CreateTable(table).compile(dialect=postgresql.dialect()))
+    fk_names = [c.name for c in table.constraints if c.__class__.__name__ == "ForeignKeyConstraint"]
+    assert len(fk_names) == len(set(fk_names)), f"duplicate FK names: {fk_names}"
+    assert "FOREIGN KEY(feed_id) REFERENCES source_feeds (id)" in ddl
+    assert "FOREIGN KEY(feed_id, source_id) REFERENCES source_feeds (id, source_id)" in ddl
 
 
 def test_critical_partial_index_predicates() -> None:
