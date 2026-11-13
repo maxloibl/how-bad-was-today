@@ -67,7 +67,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         code = _HTTP_STATUS_CODES.get(exc.status_code, "error")
         message = exc.detail if isinstance(exc.detail, str) else "Request failed."
         content = _envelope(request, code, message)
-        return JSONResponse(status_code=exc.status_code, content=content)
+        # Preserve protocol-required headers (e.g. ``Allow`` on a 405) that
+        # Starlette attached to the original HTTP exception.
+        return JSONResponse(status_code=exc.status_code, content=content, headers=exc.headers)
 
     @app.exception_handler(Exception)
     async def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:

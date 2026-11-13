@@ -25,10 +25,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Run startup/shutdown for the application.
 
     Startup performs no schema work: migrations remain the only source of
-    schema. Shutdown disposes the engine's connection pool.
+    schema. Shutdown disposes the engine's connection pool, even when the
+    application raised during its lifetime.
     """
-    yield
-    await cast(AsyncEngine, app.state.engine).dispose()
+    try:
+        yield
+    finally:
+        await cast(AsyncEngine, app.state.engine).dispose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -48,10 +51,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = session_factory
 
-    # RateLimitMiddleware is added first so RequestIdMiddleware sits outside it
-    # and the request ID exists before any rate-limit decision is made.
+    # Middleware order: ``add_middleware`` prepends, so the last one added is
+    # outermost. RequestIdMiddleware is added last so it wraps everything —
+    # including CORSMiddleware, whose preflights it must be able to label and
+    # normalise. RateLimitMiddleware is added first so a request ID always
+    # exists before any rate-limit decision is made.
     app.add_middleware(RateLimitMiddleware, rate_limit_per_minute=resolved.rate_limit_per_minute)
-    app.add_middleware(RequestIdMiddleware)
 
     if resolved.cors_origins:
         app.add_middleware(
@@ -61,6 +66,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+    app.add_middleware(RequestIdMiddleware)
 
     register_exception_handlers(app)
     app.include_router(api_router)
