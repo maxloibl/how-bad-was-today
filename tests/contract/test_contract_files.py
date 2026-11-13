@@ -1,14 +1,14 @@
 from pathlib import Path
 
 import yaml
-from openapi_spec_validator import validate_spec
+from openapi_spec_validator import validate
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_openapi_contract_is_valid_and_complete() -> None:
     spec = yaml.safe_load((ROOT / "contracts/openapi.yaml").read_text(encoding="utf-8"))
-    validate_spec(spec)
+    validate(spec)
     assert set(spec["paths"]) == {
         "/v1/days",
         "/v1/days/latest",
