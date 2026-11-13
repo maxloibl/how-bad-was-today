@@ -1,0 +1,403 @@
+openapi: 3.1.0
+info:
+  title: Daily Signal Public API
+  version: 1.0.0
+  description: >-
+    Public, read-only API for published daily news reports. Dates refer to
+    Europe/Berlin. Responses contain original Daily Signal summaries, not
+    third-party full texts. No public endpoint triggers LLM processing.
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: Days
+  - name: Stories
+  - name: Sources
+  - name: Methodology
+  - name: Operations
+
+paths:
+  /v1/days:
+    get:
+      operationId: listDays
+      tags: [Days]
+      summary: Published calendar days in an inclusive range
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      description: >-
+        Maximum 366 inclusive calendar days, from <= to. Ascending by date.
+        Unpublished days are omitted, never assigned a neutral score.
+      responses:
+        '200':
+          description: Collection of published day summaries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DayCollection' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/days/latest:
+    get:
+      operationId: getLatestDay
+      tags: [Days]
+      summary: Latest published report, not necessarily yesterday
+      responses:
+        '200':
+          description: Latest published daily report
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DailyReport' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/days/{date}:
+    get:
+      operationId: getDay
+      tags: [Days]
+      summary: Published report for a Berlin-local calendar date
+      parameters:
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          description: Current published revision
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DailyReport' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/days/{date}/stories:
+    get:
+      operationId: listDayStories
+      tags: [Stories]
+      summary: Stories in the current published report
+      parameters:
+        - $ref: '#/components/parameters/Date'
+        - name: direction
+          in: query
+          schema: { $ref: '#/components/schemas/Direction' }
+        - name: category
+          in: query
+          schema: { $ref: '#/components/schemas/Category' }
+        - name: region
+          in: query
+          schema: { $ref: '#/components/schemas/Region' }
+      responses:
+        '200':
+          description: Stories ordered by rank, filters combined with AND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoryCollection' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/stories/{id}:
+    get:
+      operationId: getStory
+      tags: [Stories]
+      summary: Story snapshot from a current published report
+      description: >-
+        Story IDs identify report-story snapshots, not source articles or
+        cross-day events. Superseded revisions are not publicly served.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Published story with attribution
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Story' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/sources:
+    get:
+      operationId: listSources
+      tags: [Sources]
+      summary: Only currently approved public news sources
+      responses:
+        '200':
+          description: Approved editorial and primary sources
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SourceCollection' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/methodology:
+    get:
+      operationId: getMethodology
+      tags: [Methodology]
+      summary: Current public scoring and attribution methodology
+      responses:
+        '200':
+          description: Versioned public methodology
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Methodology' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [Operations]
+      summary: Process liveness; not part of versioned public API
+      responses:
+        '200':
+          description: Process running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [Operations]
+      summary: API readiness, including database connectivity
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  parameters:
+    Date:
+      name: date
+      in: path
+      required: true
+      description: Europe/Berlin calendar day
+      schema: { type: string, format: date }
+  responses:
+    NotModified:
+      description: Representation unchanged according to If-None-Match
+    BadRequest:
+      description: Invalid date range or query combination
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    UnprocessableEntity:
+      description: Invalid parameter syntax or value
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request quota exceeded
+      headers:
+        Retry-After: { schema: { type: integer, minimum: 1 } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unavailable:
+      description: Service temporarily unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    DayLabel:
+      type: string
+      enum: [very_negative, negative, mixed, positive, very_positive]
+    Direction:
+      type: string
+      enum: [negative, positive, neutral, mixed, unknown]
+    Confidence:
+      type: string
+      enum: [high, medium, limited]
+    Category:
+      type: string
+      enum: [politics, economy, world, science, technology, environment, society, health]
+    Region:
+      type: string
+      enum: [germany, europe, world]
+    DayScore:
+      type: object
+      additionalProperties: false
+      required: [value, max, label, rawValue, confidence, explanation]
+      properties:
+        value: { type: integer, minimum: 1, maximum: 5 }
+        max: { type: integer, const: 5 }
+        label: { $ref: '#/components/schemas/DayLabel' }
+        rawValue: { type: number, minimum: -2, maximum: 2 }
+        confidence: { type: string, enum: [high, medium] }
+        explanation: { type: string, minLength: 1 }
+    DaySummary:
+      type: object
+      required: [date, score, headline, storyCount, revision, publishedAt]
+      properties:
+        date: { type: string, format: date }
+        score: { $ref: '#/components/schemas/DayScore' }
+        headline: { type: string, minLength: 1 }
+        storyCount: { type: integer, minimum: 5, maximum: 8 }
+        revision: { type: integer, minimum: 1 }
+        publishedAt: { type: string, format: date-time }
+    DailyReport:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/DaySummary'
+        - type: object
+          required: [timezone, summary, methodologyVersion, stories]
+          properties:
+            timezone: { type: string, const: Europe/Berlin }
+            summary: { type: string, minLength: 1 }
+            methodologyVersion: { type: string, minLength: 1 }
+            stories:
+              type: array
+              minItems: 5
+              maxItems: 8
+              items: { $ref: '#/components/schemas/Story' }
+    DayCollection:
+      type: object
+      additionalProperties: false
+      required: [from, to, days]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/DaySummary' }
+    StorySource:
+      type: object
+      additionalProperties: false
+      required: [id, sourceId, publisher, url, originalTitle, author, publishedAt, updatedAt, language, licenseCode, licenseUrl, attribution, originatingAgency, contentModified, modificationNotice]
+      properties:
+        id: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        publisher: { type: string, minLength: 1 }
+        url: { type: string, format: uri }
+        originalTitle: { type: [string, 'null'] }
+        author: { type: [string, 'null'] }
+        publishedAt: { type: string, format: date-time }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        language: { type: string }
+        licenseCode: { type: [string, 'null'] }
+        licenseUrl: { type: [string, 'null'], format: uri }
+        attribution: { type: [string, 'null'] }
+        originatingAgency: { type: [string, 'null'] }
+        contentModified: { type: boolean }
+        modificationNotice: { type: [string, 'null'] }
+    Story:
+      type: object
+      additionalProperties: false
+      required: [id, rank, title, summary, whyItMatters, category, region, direction, impact, contentBasis, derivativeLicense, derivativeLicenseUrl, modificationNotice, sources]
+      properties:
+        id: { type: string, format: uuid }
+        rank: { type: integer, minimum: 1, maximum: 8 }
+        title: { type: string, minLength: 1 }
+        summary: { type: string, minLength: 1 }
+        whyItMatters: { type: string, minLength: 1 }
+        category: { $ref: '#/components/schemas/Category' }
+        region: { $ref: '#/components/schemas/Region' }
+        direction: { $ref: '#/components/schemas/Direction' }
+        impact: { type: integer, minimum: 1, maximum: 5 }
+        contentBasis: { type: string, enum: [facts_synthesis, adaptation] }
+        derivativeLicense: { type: [string, 'null'] }
+        derivativeLicenseUrl: { type: [string, 'null'], format: uri }
+        modificationNotice: { type: [string, 'null'] }
+        sources:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/StorySource' }
+    StoryCollection:
+      type: object
+      additionalProperties: false
+      required: [date, stories]
+      properties:
+        date: { type: string, format: date }
+        stories:
+          type: array
+          items: { $ref: '#/components/schemas/Story' }
+    Source:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name, website, role, originCountry, primaryLanguage, licenseCode]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        website: { type: string, format: uri }
+        role: { type: string, enum: [editorial, primary] }
+        originCountry: { type: string, minLength: 2, maxLength: 2 }
+        primaryLanguage: { type: string }
+        licenseCode: { type: [string, 'null'] }
+    SourceCollection:
+      type: object
+      additionalProperties: false
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/Source' }
+    Methodology:
+      type: object
+      additionalProperties: false
+      required: [version, timezone, scoreScale, relevanceWeights, scoreThresholds, scoreColors, description]
+      properties:
+        version: { type: string }
+        timezone: { type: string, const: Europe/Berlin }
+        scoreScale: { type: integer, const: 5 }
+        relevanceWeights:
+          type: object
+          additionalProperties: { type: integer, minimum: 0, maximum: 100 }
+        scoreThresholds:
+          type: array
+          description: Cutoffs between 1/2, 2/3, 3/4, 4/5
+          minItems: 4
+          maxItems: 4
+          items: { type: number }
+        scoreColors:
+          type: object
+          required: [very_negative, negative, mixed, positive, very_positive]
+          additionalProperties: false
+          properties:
+            very_negative: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+            negative: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+            mixed: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+            positive: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+            very_positive: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        description: { type: string }
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok] }
