@@ -16,6 +16,7 @@ dependencies = [
     "pydantic-settings",
     "pyyaml",
     "sqlalchemy[asyncio]",
+    "tzdata",
     "uvicorn[standard]",
 ]
 
