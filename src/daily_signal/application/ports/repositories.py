@@ -20,6 +20,7 @@ from daily_signal.domain.enums import (
     DayLabel,
     Direction,
     Region,
+    SourceType,
 )
 
 
@@ -90,6 +91,20 @@ class DailyReportRecord(ReportRecord):
     stories: tuple[StoryRecord, ...]
 
 
+@dataclass(frozen=True)
+class SourceRecord:
+    """A publicly approved news source with its current permission licence."""
+
+    id: UUID
+    slug: str
+    name: str
+    website: str
+    role: SourceType
+    origin_country: str
+    primary_language: str
+    license_code: str | None
+
+
 class DailyReportRepository(Protocol):
     """Read-only access to published reports and their story snapshots."""
 
@@ -100,3 +115,9 @@ class DailyReportRepository(Protocol):
     async def list_current(self, from_date: date, to_date: date) -> list[ReportRecord]: ...
 
     async def get_current_story(self, story_id: UUID) -> StoryRecord | None: ...
+
+
+class SourceRepository(Protocol):
+    """Read-only access to sources approved for public attribution."""
+
+    async def list_approved(self) -> list[SourceRecord]: ...

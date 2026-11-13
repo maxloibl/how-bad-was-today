@@ -17,7 +17,7 @@ from daily_signal.application.queries.get_daily_report import get_story
 router = APIRouter(tags=["Stories"])
 
 
-@router.get("/stories/{id}", response_model=Story)
+@router.get("/stories/{id}", response_model=Story, operation_id="getStory")
 async def get_story_by_id(
     repository: Annotated[DailyReportRepository, Depends(get_report_repository)],
     story_id: Annotated[UUID, Path(alias="id")],

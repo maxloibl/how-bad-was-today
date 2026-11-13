@@ -1,0 +1,16 @@
+version: "1.0.0"
+timezone: Europe/Berlin
+score_scale: 5
+relevance_weights:
+  impact: 100
+score_thresholds: [-1.1, -0.3, 0.3, 1.1]
+score_colors:
+  very_negative: "#CF6666"
+  negative: "#DE9A57"
+  mixed: "#B8AC69"
+  positive: "#85B78A"
+  very_positive: "#43A779"
+description: >-
+  Weighted day score from story direction and squared impact. Mixed and unknown
+  stories are excluded. Only current published reports with high or medium
+  confidence are served.

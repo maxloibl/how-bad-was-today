@@ -31,7 +31,7 @@ def _not_found(message: str) -> ApiErrorException:
     return ApiErrorException(404, "not_found", message)
 
 
-@router.get("/days", response_model=DayCollection)
+@router.get("/days", response_model=DayCollection, operation_id="listDays")
 async def list_days(
     request: Request,
     response: Response,
@@ -53,7 +53,7 @@ async def list_days(
     return day_collection(from_date, to_date, records)
 
 
-@router.get("/days/latest", response_model=DailyReport)
+@router.get("/days/latest", response_model=DailyReport, operation_id="getLatestDay")
 async def get_latest_day(
     request: Request,
     response: Response,
@@ -70,7 +70,7 @@ async def get_latest_day(
     return daily_report(record)
 
 
-@router.get("/days/{date}", response_model=DailyReport)
+@router.get("/days/{date}", response_model=DailyReport, operation_id="getDay")
 async def get_day(
     request: Request,
     response: Response,
@@ -88,7 +88,7 @@ async def get_day(
     return daily_report(record)
 
 
-@router.get("/days/{date}/stories", response_model=StoryCollection)
+@router.get("/days/{date}/stories", response_model=StoryCollection, operation_id="listDayStories")
 async def list_day_stories(
     repository: Annotated[DailyReportRepository, Depends(get_report_repository)],
     date: Annotated[date, Path()],

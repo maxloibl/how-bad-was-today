@@ -15,6 +15,7 @@ from daily_signal.api.errors import ApiErrorException, register_exception_handle
 from daily_signal.api.middleware import RateLimitMiddleware, RequestIdMiddleware
 from daily_signal.api.schemas.health import HealthStatus
 from daily_signal.api.v1.router import api_router
+from daily_signal.application.methodology import load_methodology
 from daily_signal.core.config import Settings
 from daily_signal.core.logging import configure_logging
 from daily_signal.infrastructure.db.session import create_engine, create_session_factory
@@ -24,10 +25,13 @@ from daily_signal.infrastructure.db.session import create_engine, create_session
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Run startup/shutdown for the application.
 
-    Startup performs no schema work: migrations remain the only source of
-    schema. Shutdown disposes the engine's connection pool, even when the
-    application raised during its lifetime.
+    Startup loads and validates the pinned methodology document into
+    ``app.state.methodology`` and performs no schema work: migrations remain the
+    only source of schema. Shutdown disposes the engine's connection pool, even
+    when the application raised during its lifetime.
     """
+    settings = cast(Settings, app.state.settings)
+    app.state.methodology = load_methodology(settings.methodology_config_path)
     try:
         yield
     finally:
@@ -72,12 +76,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(api_router)
 
-    @app.get("/health/live", response_model=HealthStatus, tags=["Operations"])
+    @app.get(
+        "/health/live",
+        response_model=HealthStatus,
+        tags=["Operations"],
+        operation_id="getLiveness",
+    )
     async def health_live() -> HealthStatus:
         """Liveness: never touches the database."""
         return HealthStatus(status="ok")
 
-    @app.get("/health/ready", response_model=HealthStatus, tags=["Operations"])
+    @app.get(
+        "/health/ready",
+        response_model=HealthStatus,
+        tags=["Operations"],
+        operation_id="getReadiness",
+    )
     async def health_ready(request: Request) -> HealthStatus:
         """Readiness: verifies database connectivity with ``SELECT 1``."""
         factory = cast(async_sessionmaker[AsyncSession], request.app.state.session_factory)

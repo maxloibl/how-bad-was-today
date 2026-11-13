@@ -29,6 +29,7 @@ from sqlalchemy.pool import NullPool
 from daily_signal.core.config import Settings
 from daily_signal.infrastructure.db import models  # noqa: F401  (registers models)
 from daily_signal.infrastructure.db.base import Base
+from daily_signal.infrastructure.db.seed import load_sources_config, seed_sources
 from daily_signal.main import create_app
 
 # Importing the factory registers its fixtures for every test module under
@@ -139,6 +140,18 @@ async def clean_tables(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     async with engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     yield
+
+
+@pytest.fixture
+async def seeded_sources(
+    session_factory: async_sessionmaker[AsyncSession],
+    clean_tables: None,
+) -> None:
+    """Seed the rights-locked source config after the tables are truncated."""
+    config = load_sources_config("config/sources.yaml")
+    async with session_factory() as session:
+        await seed_sources(session, config)
+        await session.commit()
 
 
 @pytest.fixture
