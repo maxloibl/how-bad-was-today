@@ -1,0 +1,67 @@
+version: 1
+sources:
+  - slug: global-voices
+    name: Global Voices
+    publisher_group_id: stichting-global-voices
+    publisher_group_name: Stichting Global Voices
+    homepage_url: https://globalvoices.org/
+    origin_country: NL
+    primary_language: en
+    source_type: editorial
+    license_code: CC-BY-3.0
+    license_url: https://creativecommons.org/licenses/by/3.0/
+    terms_url: https://globalvoices.org/about/global-voices-attribution-policy/
+    content_scope: Only qualifying Global Voices-authored text, subject to per-item verification
+    attribution_requirements: Author, publisher, original URL, license, modifications
+    feed_url: https://globalvoices.org/feed/
+    review_status: in_review
+    enabled: false
+    permissions_approved: false
+  - slug: netzpolitik-org
+    name: netzpolitik.org
+    publisher_group_id: netzpolitik-org-ev
+    publisher_group_name: netzpolitik.org e. V.
+    homepage_url: https://netzpolitik.org/
+    origin_country: DE
+    primary_language: de
+    source_type: editorial
+    license_code: CC-BY-NC-SA-4.0
+    license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+    terms_url: https://netzpolitik.org/impressum/
+    content_scope: Only qualifying editorial-authored articles, no automatically assumed third-party rights
+    attribution_requirements: Author, publisher, original URL, license, modifications, ShareAlike if applicable
+    feed_url: https://netzpolitik.org/feed
+    review_status: in_review
+    enabled: false
+    permissions_approved: false
+  - slug: el-salto
+    name: El Salto
+    publisher_group_id: cooperativa-editorial-el-salto
+    publisher_group_name: Cooperativa Editorial S. Coop.
+    homepage_url: https://www.elsaltodiario.com/
+    origin_country: ES
+    primary_language: es
+    source_type: editorial
+    license_code: CC-BY-SA-3.0-ES
+    license_url: https://creativecommons.org/licenses/by-sa/3.0/es/
+    terms_url: https://www.elsaltodiario.com/comunidad/licencia
+    content_scope: Only qualifying text under CC BY-SA 3.0 ES, no blanket media permissions
+    attribution_requirements: Author, publisher, original URL, CC BY-SA 3.0 ES, modifications, ShareAlike if applicable
+    feed_url: https://www.elsaltodiario.com/general/feed
+    review_status: in_review
+    enabled: false
+    permissions_approved: false
+
+permission_defaults:
+  review_status: in_review
+  fetch_metadata: false
+  fetch_full_text: false
+  analyze_content: false
+  store_temporary: false
+  store_long_term: false
+  send_to_external_llm: false
+  create_embeddings: false
+  create_adaptations: false
+  republish_original_content: false
+  publish_derivatives: false
+  republish_media: false
