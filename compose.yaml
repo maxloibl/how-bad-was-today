@@ -1,0 +1,97 @@
+# Production-shaped Compose runtime for Daily Signal.
+#
+# PostgreSQL is intentionally NOT published to the host here: only the API
+# exposes a port. Migrations and source seeding run once as the ``migrate``
+# service, and the API/worker/scheduler wait for it to complete successfully, so
+# the application never creates schema on its own.
+#
+# Use ``docker compose -f compose.yaml -f compose.dev.yaml up`` for local
+# development (host port for the database, source mounts, API reload).
+
+name: daily-signal
+
+x-app-image: &app-image
+  image: daily-signal:latest
+
+# Credentials are read from the environment with local-only defaults, so no
+# fixed password is baked into the repository and deployments can override it.
+x-database-env: &database-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-daily_signal}:${POSTGRES_PASSWORD:-daily_signal}@db:5432/${POSTGRES_DB:-daily_signal}
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-daily_signal}
+      POSTGRES_USER: ${POSTGRES_USER:-daily_signal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daily_signal}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-daily_signal} -d ${POSTGRES_DB:-daily_signal}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot controlled migration + seed step. Never restarts; every other
+  # service gates on its successful completion.
+  migrate:
+    <<: *app-image
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *database-env
+    command: sh -c "alembic upgrade head && python -m daily_signal.cli seed-sources"
+    restart: "no"
+
+  api:
+    <<: *app-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *database-env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live').read()"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  worker:
+    <<: *app-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *database-env
+    command: python -m daily_signal.cli worker
+    restart: unless-stopped
+
+  scheduler:
+    <<: *app-image
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *database-env
+    command: python -m daily_signal.cli scheduler
+    restart: unless-stopped
+
+volumes:
+  db-data:

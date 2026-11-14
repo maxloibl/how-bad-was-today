@@ -1,0 +1,41 @@
+# Local development overrides. Layer on top of the base file:
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+#
+# This publishes the database on the host (for psql and the integration test
+# suite) and mounts the source, config, and contracts into the application
+# processes so edits are picked up without rebuilding. The API runs with
+# --reload; the base production contract (no db host port, baked image) is
+# unchanged when this file is not used.
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  api:
+    command:
+      - uvicorn
+      - daily_signal.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+    environment:
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./contracts:/app/contracts
+
+  worker:
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./contracts:/app/contracts
+
+  scheduler:
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./contracts:/app/contracts
