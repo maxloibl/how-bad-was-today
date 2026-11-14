@@ -87,6 +87,42 @@ def test_exception_info_is_redacted_to_type_and_short_message() -> None:
     assert __file__ not in serialized
 
 
+def test_credentials_in_urls_are_redacted_from_messages() -> None:
+    record = logging.LogRecord(
+        name="daily_signal.core.config",
+        level=logging.ERROR,
+        pathname=__file__,
+        lineno=1,
+        msg="cannot connect to postgresql+asyncpg://daily_signal:s3cret@db:5432/daily_signal",
+        args=None,
+        exc_info=None,
+    )
+    payload = _format(record)
+    assert "s3cret" not in json.dumps(payload)
+    assert payload["message"] == (
+        "cannot connect to postgresql+asyncpg://<redacted>@db:5432/daily_signal"
+    )
+
+
+def test_credentials_in_exception_messages_are_redacted() -> None:
+    try:
+        raise RuntimeError("could not connect: password=hunter2 host=db")
+    except RuntimeError:
+        record = logging.LogRecord(
+            name="daily_signal.core.config",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="configuration error",
+            args=None,
+            exc_info=sys.exc_info(),
+        )
+
+    payload = _format(record)
+    assert "hunter2" not in json.dumps(payload)
+    assert "password=<redacted>" in payload["exc_message"]
+
+
 def test_configure_logging_attaches_json_formatter() -> None:
     from daily_signal.core.logging import configure_logging
 

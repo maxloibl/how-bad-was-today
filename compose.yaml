@@ -5,33 +5,43 @@
 # service, and the API/worker/scheduler wait for it to complete successfully, so
 # the application never creates schema on its own.
 #
-# Use ``docker compose -f compose.yaml -f compose.dev.yaml up`` for local
-# development (host port for the database, source mounts, API reload).
+# Database credentials are mandatory in this file — there is no default
+# password in the production base. Supply them from the environment or an env
+# file, for example:
+#   docker compose --env-file .env.example up -d --build
+# For local development with source mounts and a host database port, layer the
+# dev override on top:
+#   docker compose --env-file .env.example -f compose.yaml -f compose.dev.yaml up
 
 name: daily-signal
 
-x-app-image: &app-image
+# Every service shares one image tag and one build context, so a fresh ``up``
+# builds once and never tries to pull ``daily-signal:latest``.
+x-app: &app
   image: daily-signal:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
 
-# Credentials are read from the environment with local-only defaults, so no
-# fixed password is baked into the repository and deployments can override it.
 x-database-env: &database-env
-  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-daily_signal}:${POSTGRES_PASSWORD:-daily_signal}@db:5432/${POSTGRES_DB:-daily_signal}
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?set POSTGRES_DB}
 
 services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-daily_signal}
-      POSTGRES_USER: ${POSTGRES_USER:-daily_signal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daily_signal}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
+      # Probe over TCP (-h), not the Unix socket: during init PostgreSQL answers
+      # pg_isready on a temporary socket-only server, which would report healthy
+      # before the real TCP listener accepts connections.
       test:
         - CMD-SHELL
-        - pg_isready -U ${POSTGRES_USER:-daily_signal} -d ${POSTGRES_DB:-daily_signal}
+        - pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:?set POSTGRES_USER} -d ${POSTGRES_DB:?set POSTGRES_DB}
       interval: 5s
       timeout: 5s
       retries: 10
@@ -40,10 +50,7 @@ services:
   # One-shot controlled migration + seed step. Never restarts; every other
   # service gates on its successful completion.
   migrate:
-    <<: *app-image
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *app
     depends_on:
       db:
         condition: service_healthy
@@ -53,7 +60,7 @@ services:
     restart: "no"
 
   api:
-    <<: *app-image
+    <<: *app
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -74,7 +81,7 @@ services:
     restart: unless-stopped
 
   worker:
-    <<: *app-image
+    <<: *app
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -84,7 +91,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    <<: *app-image
+    <<: *app
     depends_on:
       migrate:
         condition: service_completed_successfully

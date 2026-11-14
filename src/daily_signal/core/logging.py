@@ -11,10 +11,18 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import UTC, datetime
 
 _REDACTED = "<redacted>"
 _MAX_EXC_MESSAGE_CHARS = 200
+
+#: Credential-bearing URL userinfo, e.g. ``postgresql+asyncpg://user:pass@host``.
+_CREDENTIAL_URL = re.compile(r"([A-Za-z][A-Za-z0-9+.\-]*://)[^@\s/]+@")
+#: ``password=…`` / ``token: …`` style assignments.
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b(password|passwd|pwd|secret|token|api[_-]?key)\b(\s*[=:]\s*)\S+"
+)
 
 #: Field names that may carry article text, prompts, or third-party full text.
 _CONTENT_KEYS = frozenset(
@@ -70,7 +78,7 @@ class JsonFormatter(logging.Formatter):
             .replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
-            "message": self._sanitize_message(record.getMessage()),
+            "message": _redact_credentials(self._sanitize_message(record.getMessage())),
         }
 
         for key, value in record.__dict__.items():
@@ -82,7 +90,7 @@ class JsonFormatter(logging.Formatter):
             exc_type, exc_value, _ = record.exc_info
             exc_message = str(exc_value) if exc_value is not None else ""
             payload["exc_type"] = exc_type.__name__ if exc_type is not None else None
-            payload["exc_message"] = exc_message[:_MAX_EXC_MESSAGE_CHARS]
+            payload["exc_message"] = _redact_credentials(exc_message)[:_MAX_EXC_MESSAGE_CHARS]
 
         return json.dumps(payload, default=str, ensure_ascii=False)
 
@@ -92,6 +100,17 @@ class JsonFormatter(logging.Formatter):
         if any(key in message for key in _CONTENT_KEYS):
             return _REDACTED
         return message
+
+
+def _redact_credentials(text: str) -> str:
+    """Strip credentials from URLs and ``key=value`` assignments in ``text``.
+
+    Connection strings and secrets routinely surface inside exception messages;
+    the formatter removes them before serialising so a misconfigured
+    ``DATABASE_URL`` can never leak a password into the logs.
+    """
+    text = _CREDENTIAL_URL.sub(r"\1<redacted>@", text)
+    return _SECRET_ASSIGNMENT.sub(r"\1\2<redacted>", text)
 
 
 def configure_logging(level: str = "INFO") -> None:

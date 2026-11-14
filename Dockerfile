@@ -20,6 +20,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Create the unprivileged runtime user up front so application files can be
+# copied with --chown instead of a recursive chown. The venv built below is
+# root-owned but world-readable, which is all the runtime user needs.
+RUN useradd --create-home --uid 10001 appuser
+
 # 1. Resolve and install third-party dependencies only. This layer is cached
 #    until pyproject.toml or uv.lock changes.
 COPY pyproject.toml uv.lock ./
@@ -28,17 +33,14 @@ RUN uv sync --locked --no-dev --no-install-project
 # 2. Copy the application and the runtime assets it needs (README for the
 #    package metadata, migrations, alembic.ini, pinned config and contracts),
 #    then install the project itself.
-COPY README.md ./
-COPY src ./src
-COPY migrations ./migrations
-COPY alembic.ini ./
-COPY config ./config
-COPY contracts ./contracts
+COPY --chown=appuser:appuser README.md ./
+COPY --chown=appuser:appuser src ./src
+COPY --chown=appuser:appuser migrations ./migrations
+COPY --chown=appuser:appuser alembic.ini ./
+COPY --chown=appuser:appuser config ./config
+COPY --chown=appuser:appuser contracts ./contracts
 RUN uv sync --locked --no-dev
 
-# Run as an unprivileged user. The venv lives inside /app and is owned by it.
-RUN useradd --create-home --uid 10001 appuser \
-    && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

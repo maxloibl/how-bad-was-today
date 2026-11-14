@@ -1,16 +1,20 @@
-# Local development overrides. Layer on top of the base file:
-#   docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+# Local development overrides. Layer on top of the base file. The base file
+# requires POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB, so supply the
+# local-only values from the example env file (never commit a real .env):
+#   docker compose --env-file .env.example -f compose.yaml -f compose.dev.yaml up -d --build
 #
 # This publishes the database on the host (for psql and the integration test
-# suite) and mounts the source, config, and contracts into the application
-# processes so edits are picked up without rebuilding. The API runs with
-# --reload; the base production contract (no db host port, baked image) is
-# unchanged when this file is not used.
+# suite), mounts the source, config, and contracts into the application
+# processes so edits are picked up without rebuilding, and creates the
+# disposable test database. The base production contract (no db host port,
+# baked image, no test database) is unchanged when this file is not used.
 
 services:
   db:
     ports:
       - "5432:5432"
+    volumes:
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
 
   api:
     command:
@@ -29,12 +33,16 @@ services:
       - ./contracts:/app/contracts
 
   worker:
+    environment:
+      PYTHONPATH: /app/src
     volumes:
       - ./src:/app/src
       - ./config:/app/config
       - ./contracts:/app/contracts
 
   scheduler:
+    environment:
+      PYTHONPATH: /app/src
     volumes:
       - ./src:/app/src
       - ./config:/app/config

@@ -49,6 +49,15 @@ async def tick(session_factory: async_sessionmaker[AsyncSession], now: datetime)
     advisory lock; returns ``False`` before 03:30 Berlin time or when another
     process holds the lock. The lock is always released before returning, even
     if logging fails, so a later tick or another process can retry.
+
+    TODO(foundation): durable catch-up is deferred. This only claims the
+    advisory lock and logs that the run is due; it deliberately writes no
+    ``pipeline_runs`` row (a test pins this). Making catch-up durable needs the
+    analysis workflow plus a persistent marker so a restarted scheduler can tell
+    a day already ran without relying on the in-process lock: e.g. a unique
+    constraint on ``pipeline_runs(target_date)`` for
+    ``job_type = 'daily_analysis'`` (or an equivalent claim row) written inside
+    the same transaction as the run.
     """
     if not daily_analysis_due(now):
         return False
@@ -68,8 +77,10 @@ async def tick(session_factory: async_sessionmaker[AsyncSession], now: datetime)
 
 
 async def run_scheduler(settings: Settings, stop_event: asyncio.Event) -> None:
-    """Tick every ``settings.scheduler_tick_seconds`` until ``stop_event`` is set.
+    """Tick once at startup, then every ``settings.scheduler_tick_seconds``.
 
+    The first tick runs immediately so a process started after 03:30 Berlin time
+    does not wait a full interval; :func:`tick` itself enforces the 03:30 gate.
     Any error raised by :func:`tick` is logged (exception class and message
     only) and swallowed so a transient database outage cannot crash-loop the
     process. The engine is always disposed on the way out.
@@ -82,13 +93,14 @@ async def run_scheduler(settings: Settings, stop_event: asyncio.Event) -> None:
     )
     try:
         while not stop_event.is_set():
-            await _sleep_or_stop(stop_event, settings.scheduler_tick_seconds)
-            if stop_event.is_set():
-                break
             try:
                 await tick(session_factory, utc_now())
             except Exception as exc:
                 logger.error("scheduler_error", exc_info=exc)
+            logger.info("scheduler_heartbeat")
+            if stop_event.is_set():
+                break
+            await _sleep_or_stop(stop_event, settings.scheduler_tick_seconds)
     finally:
         await engine.dispose()
 
