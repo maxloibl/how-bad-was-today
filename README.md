@@ -51,7 +51,9 @@ uv sync --locked
 Docker Compose startet PostgreSQL, führt die Migration und den Quellen-Seed als
 eigenen `migrate`-Schritt aus und startet danach API, Worker und Scheduler. Die
 Basis-`compose.yaml` verlangt `POSTGRES_USER`, `POSTGRES_PASSWORD` und
-`POSTGRES_DB`; deshalb **muss** `--env-file .env.example` mitgegeben werden:
+`POSTGRES_DB`; deshalb **muss** `--env-file .env.example` mitgegeben werden. Die Zugangsdaten in `.env.example`
+sind nur für die lokale Entwicklung gedacht und müssen außerhalb der lokalen
+Entwicklung ersetzt werden:
 
 ```powershell
 docker compose --env-file .env.example up -d --build

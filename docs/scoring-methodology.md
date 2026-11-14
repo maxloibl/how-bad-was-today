@@ -24,7 +24,10 @@ raw = Σ (direction_value_i * impact_i²) / Σ (impact_i²)
   Richtungswert (`direction_value = NULL`) und gehen nicht in Zähler oder Nenner
   ein.
 - Die Gewichtung mit `impact²` verstärkt die Wirkung wichtiger Stories
-  überproportional. `relevance_weights.impact` ist auf `100` gesetzt.
+  überproportional.
+- `relevance_weights.impact` ist auf `100` konfiguriert und wird über
+  `GET /v1/methodology` veröffentlicht, ist aber im Foundation-Scoring noch
+  **nicht** wirksam: `compute_day_score` verwendet fest `impact²` als Gewicht.
 - Gibt es keine bewertbare Story, kann kein Tages-Score gebildet werden
   (`NoScorableStoriesError`); es wird kein Ersatz-Score vergeben.
 
@@ -36,13 +39,12 @@ abgebildet (`score_thresholds: [-1.1, -0.3, 0.3, 1.1]`):
 | Rohwert `raw` | Score `value` | Label |
 |---|---|---|
 | `raw < -1.1` | 1 | `very_negative` |
-| `-1.1 ≤ raw < -0.3` | 2 | `negative` |
-| `-0.3 ≤ raw ≤ 0.3` | 3 | `mixed` |
-| `0.3 < raw ≤ 1.1` | 4 | `positive` |
+| `-1.1 <= raw < -0.3` | 2 | `negative` |
+| `-0.3 <= raw <= 0.3` | 3 | `mixed` |
+| `0.3 < raw <= 1.1` | 4 | `positive` |
 | `raw > 1.1` | 5 | `very_positive` |
 
-Die Grenzen sind inklusiv um das mittlere Band `[-0.3, 0.3]` gelegt; links und
-rechts schließen die Intervalle die jeweilige Grenze mit ein.
+Die Tabelle ist maßgeblich; die Vergleichsoperatoren je Zeile gelten exakt.
 
 ## Farben
 
@@ -83,7 +85,10 @@ einen Ersatz-Score.
 
 ## Beispiel
 
-Fünf Stories mit Richtungswerten `-2, 0, +2, -1, +1` und Impacts `1, 2, 1, 1, 1`:
+Fünf Stories mit Richtungswerten `-2, 0, +2, -1, +1` und Impacts `1, 2, 1, 1, 1`.
+Die Richtungswerte ordnen sich den Richtungen wie folgt zu: `negative` → `-2`/`-1`,
+`neutral` → `0`, `positive` → `+1`/`+2`. Im JSON-Beispiel sind die Richtungen
+`negative, neutral, positive, negative, positive`:
 
 ```text
 raw = (-2·1 + 0·4 + 2·1 + (-1)·1 + 1·1) / (1 + 4 + 1 + 1 + 1) = 0 / 8 = 0
