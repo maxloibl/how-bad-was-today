@@ -1,0 +1,190 @@
+{
+  "date": "2026-11-12",
+  "score": {
+    "value": 3,
+    "max": 5,
+    "label": "mixed",
+    "rawValue": 0,
+    "confidence": "high",
+    "explanation": "Impact-weighted story directions cancel out across the five stories."
+  },
+  "headline": "A mixed day across Europe",
+  "storyCount": 5,
+  "revision": 1,
+  "publishedAt": "2026-11-12T17:30:00Z",
+  "timezone": "Europe/Berlin",
+  "summary": "Five stories with offsetting directions produced a mixed day.",
+  "methodologyVersion": "1.0.0",
+  "stories": [
+    {
+      "id": "11111111-1111-7111-8111-111111111111",
+      "rank": 1,
+      "title": "Example story one",
+      "summary": "A concise Daily Signal summary of the first story.",
+      "whyItMatters": "This is why the first story matters to readers.",
+      "category": "politics",
+      "region": "germany",
+      "direction": "negative",
+      "impact": 1,
+      "contentBasis": "facts_synthesis",
+      "derivativeLicense": null,
+      "derivativeLicenseUrl": null,
+      "modificationNotice": null,
+      "sources": [
+        {
+          "id": "21111111-1111-7111-8111-111111111111",
+          "sourceId": "31111111-1111-7111-8111-111111111111",
+          "publisher": "Example News",
+          "url": "https://news.example.test/articles/1",
+          "originalTitle": "Original headline one",
+          "author": "Jane Doe",
+          "publishedAt": "2026-11-12T08:00:00Z",
+          "updatedAt": null,
+          "language": "en",
+          "licenseCode": "CC-BY-4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+          "attribution": "Example News, CC BY 4.0",
+          "originatingAgency": null,
+          "contentModified": false,
+          "modificationNotice": null
+        }
+      ]
+    },
+    {
+      "id": "11111111-1111-7111-8111-222222222222",
+      "rank": 2,
+      "title": "Example story two",
+      "summary": "A concise Daily Signal summary of the second story.",
+      "whyItMatters": "This is why the second story matters to readers.",
+      "category": "economy",
+      "region": "europe",
+      "direction": "neutral",
+      "impact": 2,
+      "contentBasis": "facts_synthesis",
+      "derivativeLicense": null,
+      "derivativeLicenseUrl": null,
+      "modificationNotice": null,
+      "sources": [
+        {
+          "id": "21111111-1111-7111-8111-222222222222",
+          "sourceId": "31111111-1111-7111-8111-111111111111",
+          "publisher": "Example News",
+          "url": "https://news.example.test/articles/2",
+          "originalTitle": "Original headline two",
+          "author": null,
+          "publishedAt": "2026-11-12T09:15:00Z",
+          "updatedAt": "2026-11-12T10:00:00Z",
+          "language": "en",
+          "licenseCode": "CC-BY-4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+          "attribution": "Example News, CC BY 4.0",
+          "originatingAgency": null,
+          "contentModified": false,
+          "modificationNotice": null
+        }
+      ]
+    },
+    {
+      "id": "11111111-1111-7111-8111-333333333333",
+      "rank": 3,
+      "title": "Example story three",
+      "summary": "A concise Daily Signal summary of the third story.",
+      "whyItMatters": "This is why the third story matters to readers.",
+      "category": "world",
+      "region": "world",
+      "direction": "positive",
+      "impact": 1,
+      "contentBasis": "facts_synthesis",
+      "derivativeLicense": null,
+      "derivativeLicenseUrl": null,
+      "modificationNotice": null,
+      "sources": [
+        {
+          "id": "21111111-1111-7111-8111-333333333333",
+          "sourceId": "31111111-1111-7111-8111-111111111111",
+          "publisher": "Example News",
+          "url": "https://news.example.test/articles/3",
+          "originalTitle": "Original headline three",
+          "author": "Jane Doe",
+          "publishedAt": "2026-11-12T11:30:00Z",
+          "updatedAt": null,
+          "language": "en",
+          "licenseCode": "CC-BY-4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+          "attribution": "Example News, CC BY 4.0",
+          "originatingAgency": null,
+          "contentModified": false,
+          "modificationNotice": null
+        }
+      ]
+    },
+    {
+      "id": "11111111-1111-7111-8111-444444444444",
+      "rank": 4,
+      "title": "Example story four",
+      "summary": "A concise Daily Signal summary of the fourth story.",
+      "whyItMatters": "This is why the fourth story matters to readers.",
+      "category": "science",
+      "region": "europe",
+      "direction": "negative",
+      "impact": 1,
+      "contentBasis": "facts_synthesis",
+      "derivativeLicense": null,
+      "derivativeLicenseUrl": null,
+      "modificationNotice": null,
+      "sources": [
+        {
+          "id": "21111111-1111-7111-8111-444444444444",
+          "sourceId": "31111111-1111-7111-8111-111111111111",
+          "publisher": "Example News",
+          "url": "https://news.example.test/articles/4",
+          "originalTitle": "Original headline four",
+          "author": "Jane Doe",
+          "publishedAt": "2026-11-12T12:45:00Z",
+          "updatedAt": null,
+          "language": "en",
+          "licenseCode": "CC-BY-4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+          "attribution": "Example News, CC BY 4.0",
+          "originatingAgency": null,
+          "contentModified": false,
+          "modificationNotice": null
+        }
+      ]
+    },
+    {
+      "id": "11111111-1111-7111-8111-555555555555",
+      "rank": 5,
+      "title": "Example story five",
+      "summary": "A concise Daily Signal summary of the fifth story.",
+      "whyItMatters": "This is why the fifth story matters to readers.",
+      "category": "environment",
+      "region": "germany",
+      "direction": "positive",
+      "impact": 1,
+      "contentBasis": "facts_synthesis",
+      "derivativeLicense": null,
+      "derivativeLicenseUrl": null,
+      "modificationNotice": null,
+      "sources": [
+        {
+          "id": "21111111-1111-7111-8111-555555555555",
+          "sourceId": "31111111-1111-7111-8111-111111111111",
+          "publisher": "Example News",
+          "url": "https://news.example.test/articles/5",
+          "originalTitle": "Original headline five",
+          "author": "Jane Doe",
+          "publishedAt": "2026-11-12T14:00:00Z",
+          "updatedAt": null,
+          "language": "en",
+          "licenseCode": "CC-BY-4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+          "attribution": "Example News, CC BY 4.0",
+          "originatingAgency": null,
+          "contentModified": false,
+          "modificationNotice": null
+        }
+      ]
+    }
+  ]
+}
