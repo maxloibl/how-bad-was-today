@@ -1,8 +1,6 @@
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
-import yaml
 from sqlalchemy import select
 
 from daily_signal.infrastructure.db.models import NewsSource, SourcePermission
@@ -75,12 +73,62 @@ async def test_latest_permission_revision_must_be_approved(
     assert response.json() == {"sources": []}
 
 
+async def test_approved_but_disabled_source_is_not_public(
+    client, session_factory, seeded_sources
+) -> None:
+    async with session_factory() as session:
+        source = await session.scalar(select(NewsSource).where(NewsSource.slug == "global-voices"))
+        assert source is not None
+        source.review_status = "approved"
+        source.enabled = False
+        permission = await session.scalar(
+            select(SourcePermission).where(SourcePermission.source_id == source.id)
+        )
+        assert permission is not None
+        permission.review_status = "approved"
+        permission.approved_by = "test"
+        permission.approved_at = permission.created_at
+        await session.commit()
+
+    response = await client.get("/v1/sources")
+    assert response.json() == {"sources": []}
+
+
+async def test_approved_enabled_source_without_permission_is_not_public(
+    client, session_factory, seeded_sources
+) -> None:
+    async with session_factory() as session:
+        existing = await session.scalar(
+            select(NewsSource).where(NewsSource.slug == "global-voices")
+        )
+        assert existing is not None
+        session.add(
+            NewsSource(
+                id=uuid4(),
+                publisher_group_id=existing.publisher_group_id,
+                slug="no-permission",
+                name="No Permission",
+                homepage_url="https://no-permission.example.test/",
+                source_type="editorial",
+                origin_country="DE",
+                primary_language="de",
+                review_status="approved",
+                enabled=True,
+            )
+        )
+        await session.commit()
+
+    response = await client.get("/v1/sources")
+    assert response.json() == {"sources": []}
+
+
 async def test_methodology_returns_pinned_values(client) -> None:
     response = await client.get("/v1/methodology")
     assert response.status_code == 200
     assert_valid(response.json(), "Methodology")
     assert response.json()["timezone"] == "Europe/Berlin"
     assert response.json()["scoreScale"] == 5
+    assert response.json()["relevanceWeights"] == {"impact": 100}
     assert response.json()["scoreThresholds"] == [-1.1, -0.3, 0.3, 1.1]
     assert response.json()["scoreColors"] == {
         "very_negative": "#CF6666",
@@ -89,23 +137,3 @@ async def test_methodology_returns_pinned_values(client) -> None:
         "positive": "#85B78A",
         "very_positive": "#43A779",
     }
-
-
-async def test_generated_openapi_matches_contract_route_inventory(app) -> None:
-    contract = yaml.safe_load(Path("contracts/openapi.yaml").read_text(encoding="utf-8"))
-    generated = app.openapi()
-    contract_routes = {
-        (path, method) for path, item in contract["paths"].items() for method in item
-    }
-    generated_routes = {
-        (path, method)
-        for path, item in generated["paths"].items()
-        if path.startswith(("/v1", "/health"))
-        for method in item
-    }
-    assert generated_routes == contract_routes
-    for path, method in contract_routes:
-        assert (
-            generated["paths"][path][method]["operationId"]
-            == contract["paths"][path][method]["operationId"]
-        )

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 #: Score-band colours must be six-digit hex values prefixed with ``#``.
 _HEX_COLOR = r"^#[0-9A-Fa-f]{6}$"
@@ -50,6 +50,14 @@ class MethodologyConfig(BaseModel):
     score_thresholds: list[float] = Field(min_length=_THRESHOLD_COUNT, max_length=_THRESHOLD_COUNT)
     score_colors: ScoreColors
     description: str = Field(min_length=1)
+
+    @field_validator("relevance_weights")
+    @classmethod
+    def _require_impact_weight(cls, value: dict[str, int]) -> dict[str, int]:
+        """Fail closed unless the mandatory ``impact`` weight is present."""
+        if "impact" not in value:
+            raise ValueError("relevance_weights must include an 'impact' weight")
+        return value
 
 
 def load_methodology(path: Path) -> MethodologyConfig:

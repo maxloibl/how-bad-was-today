@@ -15,7 +15,7 @@ from daily_signal.api.errors import ApiErrorException, register_exception_handle
 from daily_signal.api.middleware import RateLimitMiddleware, RequestIdMiddleware
 from daily_signal.api.schemas.health import HealthStatus
 from daily_signal.api.v1.router import api_router
-from daily_signal.application.methodology import load_methodology
+from daily_signal.application.methodology import MethodologyConfigError, load_methodology
 from daily_signal.core.config import Settings
 from daily_signal.core.logging import configure_logging
 from daily_signal.infrastructure.db.session import create_engine, create_session_factory
@@ -27,12 +27,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Startup loads and validates the pinned methodology document into
     ``app.state.methodology`` and performs no schema work: migrations remain the
-    only source of schema. Shutdown disposes the engine's connection pool, even
-    when the application raised during its lifetime.
+    only source of schema. Shutdown always disposes the engine's connection
+    pool, even when startup fails (e.g. a malformed methodology config).
     """
     settings = cast(Settings, app.state.settings)
-    app.state.methodology = load_methodology(settings.methodology_config_path)
     try:
+        try:
+            app.state.methodology = load_methodology(settings.methodology_config_path)
+        except MethodologyConfigError as exc:
+            raise RuntimeError(
+                f"invalid methodology config at {settings.methodology_config_path}: {exc}"
+            ) from exc
         yield
     finally:
         await cast(AsyncEngine, app.state.engine).dispose()
