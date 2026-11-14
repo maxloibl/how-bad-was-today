@@ -1,0 +1,27 @@
+name: Container
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build container image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: false
+          tags: daily-signal:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
