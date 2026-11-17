@@ -1,11 +1,12 @@
 """Alembic migration environment.
 
-Reads the target URL from ``DATABASE_URL`` and uses the ORM ``Base.metadata``
-as ``target_metadata``. Supports async engines via ``create_async_engine``.
+Resolves the target URL through application ``Settings`` (an explicit
+``DATABASE_URL`` override or the discrete ``POSTGRES_*`` fields) and uses the
+ORM ``Base.metadata`` as ``target_metadata``. Supports async engines via
+``create_async_engine``.
 """
 
 import asyncio
-import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -13,6 +14,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from daily_signal.core.config import Settings
 from daily_signal.infrastructure.db import models  # noqa: F401  (registers models)
 from daily_signal.infrastructure.db.base import Base
 
@@ -25,10 +27,8 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL must be set to run migrations")
-    return url
+    """Return the configured SQLAlchemy URL, honouring an explicit override."""
+    return Settings().resolved_database_url
 
 
 def run_migrations_offline() -> None:

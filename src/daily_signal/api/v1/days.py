@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Request, Response
 
 from daily_signal.api.dependencies import get_report_repository
-from daily_signal.api.errors import ApiErrorException
+from daily_signal.api.errors import ApiErrorException, not_found
 from daily_signal.api.etag import etag_matches, make_days_etag, make_report_etag
 from daily_signal.api.schemas.days import DailyReport, DayCollection
 from daily_signal.api.schemas.mapping import daily_report, day_collection, story_collection
@@ -25,10 +25,6 @@ router = APIRouter(tags=["Days"])
 
 #: The contract caps an inclusive calendar range at 366 days.
 _MAX_RANGE_DAYS = 366
-
-
-def _not_found(message: str) -> ApiErrorException:
-    return ApiErrorException(404, "not_found", message)
 
 
 @router.get("/days", response_model=DayCollection, operation_id="listDays")
@@ -62,7 +58,7 @@ async def get_latest_day(
     """Return the most recent current published report, if any."""
     record = await get_latest_daily_report(repository)
     if record is None:
-        raise _not_found("No published report found.")
+        raise not_found("No published report found.")
     etag = make_report_etag(record.id, record.revision)
     if etag_matches(request.headers.get("if-none-match"), etag):
         return Response(status_code=304, headers={"ETag": etag})
@@ -80,7 +76,7 @@ async def get_day(
     """Return the current published report for a Berlin-local calendar date."""
     record = await get_daily_report(repository, date)
     if record is None:
-        raise _not_found("Report not found or not published.")
+        raise not_found("Report not found or not published.")
     etag = make_report_etag(record.id, record.revision)
     if etag_matches(request.headers.get("if-none-match"), etag):
         return Response(status_code=304, headers={"ETag": etag})
@@ -99,7 +95,7 @@ async def list_day_stories(
     """List stories in a day's current published report, filtered with AND."""
     record = await get_daily_report(repository, date)
     if record is None:
-        raise _not_found("Report not found or not published.")
+        raise not_found("Report not found or not published.")
 
     stories = [
         story

@@ -84,13 +84,20 @@ class JsonFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key in _RESERVED or key.startswith("_"):
                 continue
-            payload[key] = _REDACTED if key in _CONTENT_KEYS else value
+            if key in _CONTENT_KEYS:
+                payload[key] = _REDACTED
+            elif isinstance(value, str):
+                payload[key] = _redact_credentials(value)
+            else:
+                payload[key] = value
 
         if record.exc_info:
             exc_type, exc_value, _ = record.exc_info
             exc_message = str(exc_value) if exc_value is not None else ""
             payload["exc_type"] = exc_type.__name__ if exc_type is not None else None
-            payload["exc_message"] = _redact_credentials(exc_message)[:_MAX_EXC_MESSAGE_CHARS]
+            payload["exc_message"] = _redact_credentials(self._sanitize_message(exc_message))[
+                :_MAX_EXC_MESSAGE_CHARS
+            ]
 
         return json.dumps(payload, default=str, ensure_ascii=False)
 

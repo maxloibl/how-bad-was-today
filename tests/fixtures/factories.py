@@ -16,9 +16,10 @@ return exactly one story.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -53,6 +54,15 @@ _LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
 _PUBLISHER = "Example Source"
 
 
+@dataclass(frozen=True)
+class PublishedReportFixture:
+    """Identifiers of the report and story rows created by the fixture."""
+
+    report_id: UUID
+    current_story_ids: tuple[UUID, ...]
+    superseded_story_id: UUID
+
+
 def _published_report_fields(
     *, report_date: date, revision: int, published_at: datetime
 ) -> dict[str, Any]:
@@ -78,7 +88,7 @@ def _published_report_fields(
 async def published_report(
     session_factory: async_sessionmaker[AsyncSession],
     clean_tables: None,
-) -> AsyncIterator[dict[str, Any]]:
+) -> AsyncIterator[PublishedReportFixture]:
     """Insert a rights-cleared published report and return its identifiers."""
     group_id = uuid4()
     source_id = uuid4()
@@ -281,8 +291,8 @@ async def published_report(
         )
         await session.commit()
 
-    yield {
-        "report_id": report_id,
-        "current_story_ids": story_ids,
-        "superseded_story_id": superseded_story_id,
-    }
+    yield PublishedReportFixture(
+        report_id=report_id,
+        current_story_ids=tuple(story_ids),
+        superseded_story_id=superseded_story_id,
+    )

@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path
 
 from daily_signal.api.dependencies import get_report_repository
-from daily_signal.api.errors import ApiErrorException
+from daily_signal.api.errors import not_found
 from daily_signal.api.schemas.mapping import story
 from daily_signal.api.schemas.stories import Story
 from daily_signal.application.ports.repositories import DailyReportRepository
@@ -25,5 +25,5 @@ async def get_story_by_id(
     """Return a story from a current published report, or 404."""
     record = await get_story(repository, story_id)
     if record is None:
-        raise ApiErrorException(404, "not_found", "Story not found or not published.")
+        raise not_found("Story not found or not published.")
     return story(record)

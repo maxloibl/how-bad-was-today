@@ -9,7 +9,6 @@ their sources are loaded in one grouped query. Attribution comes from the
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import date
 from uuid import UUID
 
@@ -56,6 +55,29 @@ def _report_record(report: models.DailyReport, story_count: int) -> ReportRecord
         methodology_version=report.methodology_version,
         published_at=_require(report.published_at, "published_at"),
         story_count=story_count,
+    )
+
+
+def _daily_report_record(
+    report: models.DailyReport, stories: tuple[StoryRecord, ...]
+) -> DailyReportRecord:
+    """Combine a report row with its stories into one published snapshot."""
+    base = _report_record(report, len(stories))
+    return DailyReportRecord(
+        id=base.id,
+        report_date=base.report_date,
+        revision=base.revision,
+        headline=base.headline,
+        summary=base.summary,
+        score=base.score,
+        raw_score=base.raw_score,
+        score_label=base.score_label,
+        score_confidence=base.score_confidence,
+        score_explanation=base.score_explanation,
+        methodology_version=base.methodology_version,
+        published_at=base.published_at,
+        story_count=base.story_count,
+        stories=stories,
     )
 
 
@@ -117,7 +139,7 @@ class SqlAlchemyDailyReportRepository:
         if report is None:
             return None
         stories = await self._load_stories(report.id)
-        return DailyReportRecord(**asdict(_report_record(report, len(stories))), stories=stories)
+        return _daily_report_record(report, stories)
 
     async def get_latest(self) -> DailyReportRecord | None:
         report = (
@@ -133,7 +155,7 @@ class SqlAlchemyDailyReportRepository:
         if report is None:
             return None
         stories = await self._load_stories(report.id)
-        return DailyReportRecord(**asdict(_report_record(report, len(stories))), stories=stories)
+        return _daily_report_record(report, stories)
 
     async def list_current(self, from_date: date, to_date: date) -> list[ReportRecord]:
         story_count = (

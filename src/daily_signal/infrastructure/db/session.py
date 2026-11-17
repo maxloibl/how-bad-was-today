@@ -13,7 +13,7 @@ from daily_signal.core.config import Settings
 def create_engine(settings: Settings) -> AsyncEngine:
     """Build an async SQLAlchemy engine for the configured database URL."""
     return create_async_engine(
-        settings.database_url,
+        settings.resolved_database_url,
         pool_pre_ping=True,
         connect_args={"timeout": 5},
     )

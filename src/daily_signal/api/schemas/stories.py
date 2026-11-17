@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from daily_signal.api.schemas.base import ApiModel
 from daily_signal.domain.enums import Category, ContentBasis, Direction, Region
@@ -39,14 +39,14 @@ class Story(ApiModel):
     model_config = ConfigDict(extra="forbid")
 
     id: UUID
-    rank: int
+    rank: int = Field(ge=1, le=8)
     title: str
     summary: str
     why_it_matters: str
     category: Category
     region: Region
     direction: Direction
-    impact: int
+    impact: int = Field(ge=1, le=5)
     content_basis: ContentBasis
     derivative_license: str | None
     derivative_license_url: str | None

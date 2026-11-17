@@ -12,12 +12,18 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from daily_signal.api.schemas.errors import ApiError, ApiErrorBody
 
-#: Error codes for HTTP exceptions FastAPI raises on its own. 404 is the only
-#: one the public contract pins; 405 keeps method mistakes readable. Anything
-#: else falls back to a generic ``error`` code.
-_HTTP_STATUS_CODES: dict[int, str] = {
+#: Shared status-to-code vocabulary for HTTP exceptions raised by the app or
+#: by ASGI middleware that bypasses the exception handlers. Unmapped statuses
+#: fall back to the generic ``error`` code.
+HTTP_STATUS_CODES: dict[int, str] = {
+    400: "bad_request",
+    401: "unauthorized",
+    403: "forbidden",
     404: "not_found",
     405: "method_not_allowed",
+    409: "conflict",
+    422: "invalid_parameter",
+    429: "rate_limited",
 }
 
 
@@ -29,6 +35,11 @@ class ApiErrorException(Exception):
         self.status_code = status_code
         self.code = code
         self.message = message
+
+
+def not_found(message: str) -> ApiErrorException:
+    """Build the standard 404 error for a missing or unpublished resource."""
+    return ApiErrorException(404, "not_found", message)
 
 
 def _request_id(request: Request) -> str:
@@ -64,7 +75,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _handle_http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        code = _HTTP_STATUS_CODES.get(exc.status_code, "error")
+        code = HTTP_STATUS_CODES.get(exc.status_code, "error")
         message = exc.detail if isinstance(exc.detail, str) else "Request failed."
         content = _envelope(request, code, message)
         # Preserve protocol-required headers (e.g. ``Allow`` on a 405) that

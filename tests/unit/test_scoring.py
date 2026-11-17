@@ -29,6 +29,17 @@ def test_threshold_boundaries(raw: float, value: int) -> None:
     assert score_from_raw(raw).value == value
 
 
+@pytest.mark.parametrize("raw", [2.0001, -2.0001, float("nan")])
+def test_score_from_raw_rejects_out_of_range_values(raw: float) -> None:
+    with pytest.raises(ValueError, match="raw score must be between"):
+        score_from_raw(raw)
+
+
+def test_scorable_direction_without_value_raises() -> None:
+    with pytest.raises(ValueError, match="must have a direction value"):
+        compute_day_score([ScoredStory(Direction.NEGATIVE, None, 2)])
+
+
 def test_impact_squared_weighting() -> None:
     result = compute_day_score(
         [

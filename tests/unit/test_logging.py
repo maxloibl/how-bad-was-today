@@ -104,6 +104,44 @@ def test_credentials_in_urls_are_redacted_from_messages() -> None:
     )
 
 
+def test_credentials_in_extra_fields_are_redacted() -> None:
+    record = logging.LogRecord(
+        name="daily_signal.repository",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="repository configured",
+        args=None,
+        exc_info=None,
+    )
+    record.database_url = "postgresql+asyncpg://daily_signal:s3cret@db:5432/daily_signal"
+
+    payload = _format(record)
+
+    assert payload["database_url"] == ("postgresql+asyncpg://<redacted>@db:5432/daily_signal")
+    assert "s3cret" not in json.dumps(payload)
+
+
+def test_exception_message_naming_content_key_is_redacted() -> None:
+    try:
+        raise RuntimeError("body_text: FULL ARTICLE TEXT THAT MUST NOT APPEAR")
+    except RuntimeError:
+        record = logging.LogRecord(
+            name="daily_signal.pipeline",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="pipeline failed",
+            args=None,
+            exc_info=sys.exc_info(),
+        )
+
+    payload = _format(record)
+
+    assert payload["exc_message"] == "<redacted>"
+    assert "FULL ARTICLE TEXT" not in json.dumps(payload)
+
+
 def test_credentials_in_exception_messages_are_redacted() -> None:
     try:
         raise RuntimeError("could not connect: password=hunter2 host=db")

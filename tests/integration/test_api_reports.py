@@ -63,6 +63,18 @@ async def test_calendar_lists_only_current_published_days(client, published_repo
     assert body["days"][0]["storyCount"] == 5
     assert response.headers["ETag"]
 
+    detail = await client.get("/v1/days/2026-11-12")
+    assert detail.status_code == 200
+    assert body["days"][0]["storyCount"] == len(detail.json()["stories"])
+
+    not_modified = await client.get(
+        "/v1/days",
+        params={"from": "2026-11-01", "to": "2026-11-30"},
+        headers={"If-None-Match": response.headers["ETag"]},
+    )
+    assert not_modified.status_code == 304
+    assert not not_modified.content
+
 
 async def test_story_filters_combine_with_and(client, published_report) -> None:
     response = await client.get(
@@ -82,13 +94,13 @@ async def test_superseded_revision_and_its_stories_are_invisible(
     client,
     published_report,
 ) -> None:
-    response = await client.get(f"/v1/stories/{published_report['superseded_story_id']}")
+    response = await client.get(f"/v1/stories/{published_report.superseded_story_id}")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
 
 
 async def test_current_story_returns_attribution_snapshot(client, published_report) -> None:
-    story_id = published_report["current_story_ids"][0]
+    story_id = published_report.current_story_ids[0]
     response = await client.get(f"/v1/stories/{story_id}")
     assert response.status_code == 200
     assert_valid(response.json(), "Story")

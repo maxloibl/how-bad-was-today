@@ -17,12 +17,12 @@ class DayScore(ApiModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    value: int
+    value: int = Field(ge=1, le=5)
     max: Literal[5] = 5
     label: DayLabel
-    raw_value: float
+    raw_value: float = Field(ge=-2, le=2)
     confidence: Confidence
-    explanation: str
+    explanation: str = Field(min_length=1)
 
 
 class DaySummary(ApiModel):
@@ -31,7 +31,7 @@ class DaySummary(ApiModel):
     date: date
     score: DayScore
     headline: str
-    story_count: int
+    story_count: int = Field(ge=5, le=8)
     revision: int
     published_at: datetime
 

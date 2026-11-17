@@ -8,6 +8,8 @@
 # processes so edits are picked up without rebuilding, and creates the
 # disposable test database. The base production contract (no db host port,
 # baked image, no test database) is unchanged when this file is not used.
+# The POSTGRES_* variables from the base file (including POSTGRES_HOST=db) are
+# inherited unchanged; no hand-built DATABASE_URL is supplied in either file.
 
 services:
   db:
