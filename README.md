@@ -1,5 +1,7 @@
 # Daily Signal
 
+Für die Entwicklung gelten die [Produktspezifikationen und die Quellenmatrix](docs/specs/README.md). Der [Arbeitsablauf](AGENTS.md) beschreibt die Pflege von Anforderungen, Status und Prüfnachweisen.
+
 Daily Signal ist eine **read-only Public API** für veröffentlichte Tagesberichte.
 Pro `Europe/Berlin`-Kalendertag liefert sie die aktuell veröffentlichte
 Berichtsrevision mit 5–8 Nachrichten-Stories, einem Tages-Score von 1 bis 5 und
